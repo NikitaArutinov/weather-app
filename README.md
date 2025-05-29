@@ -27,8 +27,8 @@
 ### Steps
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
-   cd <repository-directory>
+   git clone https://github.com/NikitaArutinov/weather-app.git
+   cd weather-app
    ```
 2. Build and run the Docker container:
    ```bash

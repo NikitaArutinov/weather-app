@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Прогноз погоды</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            let suggestionCache = {}; // Локальный кэш для автозаполнения
+            let debounceTimeout;
+
+            $('#city').on('input', function() {
+                clearTimeout(debounceTimeout); // Очищаем предыдущий таймер
+
+                let query = $(this).val().trim();
+                if (query.length < 3) { // Запросы начинаются с 3 символов
+                    $('#suggestions').empty();
+                    return;
+                }
+
+                // Проверяем кэш
+                if (suggestionCache[query]) {
+                    displaySuggestions(suggestionCache[query]);
+                    return;
+                }
+
+                // Устанавливаем задержку 300 мс перед отправкой запроса
+                debounceTimeout = setTimeout(function() {
+                    $.get('/autocomplete', {q: query}, function(data) {
+                        suggestionCache[query] = data; // Сохраняем в кэш
+                        displaySuggestions(data);
+                    }).fail(function() {
+                        $('#suggestions').empty(); // Очищаем при ошибке
+                    });
+                }, 300);
+            });
+
+            function displaySuggestions(data) {
+                $('#suggestions').empty();
+                data.forEach(function(item) {
+                    $('#suggestions').append(
+                        `<div class="p-2 hover:bg-gray-100 cursor-pointer suggestion"
+                              data-lat="${item.lat}"
+                              data-lon="${item.lon}"
+                              data-name="${item.name}">${item.name}</div>`
+                    );
+                });
+            }
+
+            $(document).on('click', '.suggestion', function() {
+                $('#city').val($(this).data('name'));
+                $('#lat').val($(this).data('lat'));
+                $('#lon').val($(this).data('lon'));
+                $('#suggestions').empty();
+                $('#weather-form').submit();
+            });
+        });
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+        <h1 class="text-2xl font-bold mb-4 text-center">Прогноз погоды</h1>
+        {% if error %}
+            <p class="text-red-500 mb-4">{{ error }}</p>
+        {% endif %}
+        {% if last_city %}
+            <p class="mb-4">Посмотреть погоду для <a href="#" class="text-blue-500 underline" onclick="$('#city').val('{{ last_city }}'); $('#weather-form').submit();">{{ last_city }}</a>?</p>
+        {% endif %}
+        <form id="weather-form" action="/weather" method="POST">
+            <input type="text" id="city" name="city" placeholder="Введите название города" class="w-full p-2 mb-2 border rounded" autocomplete="off">
+            <input type="hidden" id="lat" name="lat">
+            <input type="hidden" id="lon" name="lon">
+            <div id="suggestions" class="border rounded max-h-40 overflow-y-auto"></div>
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded mt-2 hover:bg-blue-600">Получить прогноз</button>
+        </form>
+    </div>
+</body>
+</html>
